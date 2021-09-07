@@ -27,7 +27,7 @@ def call() {
                         shallow: false]],
                         userRemoteConfigs: [[url: 'https://github.com/iris-GmbH/iris-kas.git']]])
                     // try to checkout identical named branch
-                    sh "if [ \"$(basename ${GIT_BRANCH})\" != \"master\" ]; then git checkout ${GIT_BRANCH} || true; fi"
+                    sh "if [ \"\$(basename ${GIT_BRANCH})\" != \"master\" ]; then git checkout ${GIT_BRANCH} || true; fi"
                     // manually upload kas sources to S3, as to prevent upload conflicts in parallel steps
                     zip dir: '', zipFile: 'iris-kas-sources.zip'
                     s3Upload acl: 'Private',
