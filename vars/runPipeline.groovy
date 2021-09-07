@@ -26,8 +26,8 @@ def call() {
                         reference: '',
                         shallow: false]],
                         userRemoteConfigs: [[url: 'https://github.com/iris-GmbH/iris-kas.git']]])
-                    // try to checkout identical named branch
-                    sh "if [ \"$(basename ${GIT_BRANCH})\" != \"master\" ]; then git checkout ${GIT_BRANCH} || true; fi"
+                    // try to checkout identical named branch, do not checkout master or PR branch
+                    sh """if [ \"\$(basename ${GIT_BRANCH})\" != \"master\" ] && [ \"\$(echo ${GIT_BRANCH} | grep -vE '^PR-')\" ]; then git checkout ${GIT_BRANCH} || true; fi"""
                     // manually upload kas sources to S3, as to prevent upload conflicts in parallel steps
                     zip dir: '', zipFile: 'iris-kas-sources.zip'
                     s3Upload acl: 'Private',
