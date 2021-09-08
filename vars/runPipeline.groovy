@@ -26,8 +26,12 @@ def call() {
                         reference: '',
                         shallow: false]],
                         userRemoteConfigs: [[url: 'https://github.com/iris-GmbH/iris-kas.git']]])
-                    // try to checkout identical named branch, do not checkout master or PR branch
-                    sh """if [ \"\$(basename ${GIT_BRANCH})\" != \"master\" ] && [ \"\$(echo ${GIT_BRANCH} | grep -vE '^PR-')\" ]; then git checkout ${GIT_BRANCH} || true; fi"""
+                    script {
+                        // if this is a PR branch, the env variable "CHANGE_BRANCH" will contain the real branch name, which we need for checkout later on
+                        env.REAL_GIT_BRANCH = sh(script: "if [ -n \"${CHANGE_BRANCH}\" ]; then echo \"${CHANGE_BRANCH}\"; else echo \"${GIT_BRANCH}\"; fi", returnStdout: true).trim()
+                    }
+                    // try to checkout identical named branch, do not checkout master
+                    sh "if [ \"\$(basename ${REAL_GIT_BRANCH})\" != \"master\" ]; then git checkout ${REAL_GIT_BRANCH} || true; fi"
                     // manually upload kas sources to S3, as to prevent upload conflicts in parallel steps
                     zip dir: '', zipFile: 'iris-kas-sources.zip'
                     s3Upload acl: 'Private',
@@ -63,7 +67,7 @@ def call() {
                                     sourceControlType: 'project',
                                     sourceTypeOverride: 'S3',
                                     sourceLocationOverride: "${S3_BUCKET}/${JOB_NAME}/${GIT_COMMIT}/iris-kas-sources.zip",
-                                    envVariables: "[ { MULTI_CONF, $MULTI_CONF }, { IMAGES, $IMAGES }, { GIT_BRANCH, $GIT_BRANCH }, { SDK_IMAGE, $SDK_IMAGE }, { HOME, /home/builder }, { JOB_NAME, $JOB_NAME } ]"
+                                    envVariables: "[ { MULTI_CONF, $MULTI_CONF }, { IMAGES, $IMAGES }, { GIT_BRANCH, $REAL_GIT_BRANCH }, { SDK_IMAGE, $SDK_IMAGE }, { HOME, /home/builder }, { JOB_NAME, $JOB_NAME } ]"
                             }
                         }
                     }
