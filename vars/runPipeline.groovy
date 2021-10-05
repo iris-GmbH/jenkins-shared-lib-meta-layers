@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2021 iris-GmbH infrared & intelligent sensors
 
+@Library('jenkins-shared-lib-meta-devbuild-testing@master') _
+
 def call() {
     pipeline {
         agent any
@@ -27,7 +29,11 @@ def call() {
                         shallow: false]],
                         userRemoteConfigs: [[url: 'https://github.com/iris-GmbH/iris-kas.git']]])
                     // try to checkout identical named branch, do not checkout master or PR branch
-                    sh """if [ \"\$(basename ${GIT_BRANCH})\" != \"master\" ] && [ \"\$(echo ${GIT_BRANCH} | grep -vE '^PR-')\" ]; then git checkout ${GIT_BRANCH} || true; fi"""
+                    sh """
+                        if [ \"\$(basename ${GIT_BRANCH})\" != \"master\" ] && [ \"\$(echo ${GIT_BRANCH} | grep -vE '^PR-')\" ]; then
+                            git checkout ${GIT_BRANCH} || true;
+                        fi
+                    """
                     // manually upload kas sources to S3, as to prevent upload conflicts in parallel steps
                     zip dir: '', zipFile: 'iris-kas-sources.zip'
                     s3Upload acl: 'Private',
@@ -40,36 +46,7 @@ def call() {
                 }
             }
             
-            stage('Build Firmware') {
-                matrix {
-                    axes {
-                        axis {
-                            name 'MULTI_CONF'
-                            values 'sc573-gen6', 'imx8mp-evk'
-                        }
-                        axis {
-                            name 'IMAGES'
-                            values 'irma6-deploy irma6-maintenance irma6-dev'
-                        }
-                    }
-                    stages {
-                        stage("Build Firmware Artifacts") {
-                            steps {
-                                awsCodeBuild buildSpecFile: 'buildspecs/build_firmware_images_develop.yml',
-                                    projectName: 'iris-devops-kas-large-amd-codebuild',
-                                    credentialsType: 'keys',
-                                    downloadArtifacts: 'false',
-                                    region: 'eu-central-1',
-                                    sourceControlType: 'project',
-                                    sourceTypeOverride: 'S3',
-                                    sourceLocationOverride: "${S3_BUCKET}/${JOB_NAME}/${GIT_COMMIT}/iris-kas-sources.zip",
-                                    envVariables: "[ { MULTI_CONF, $MULTI_CONF }, { IMAGES, $IMAGES }, { GIT_BRANCH, $GIT_BRANCH }, { SDK_IMAGE, $SDK_IMAGE }, { HOME, /home/builder }, { JOB_NAME, $JOB_NAME } ]"
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        runDevelopBuildAndUnittests()
     
         post {
             // clean after build
