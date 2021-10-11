@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2021 iris-GmbH infrared & intelligent sensors
 
-@Library('jenkins-shared-lib-meta-devbuild-testing@master') _
-
 def call() {
     pipeline {
         agent any
@@ -46,11 +44,22 @@ def call() {
                 }
             }
             
-        runDevelopBuildAndUnittests()
-    
+            stage('Build Firmware Artifacts') {
+                script {
+                    runDevelopBuild()
+                }
+            }
+
+            stage('Run QEMU Tests') {
+                script {
+                    runQemuTests()
+                }
+            }
+        }
+
         post {
             // clean after build
-            always {
+            cleanup {
                 cleanWs(cleanWhenNotBuilt: false,
                         deleteDirs: true,
                         disableDeferredWipeout: true,
