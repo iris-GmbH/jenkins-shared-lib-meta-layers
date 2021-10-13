@@ -16,20 +16,28 @@ def call() {
         stages {
             stage('Preparation Stage') {
                 steps {
+                    script {
+                        // if this is a PR branch, the env variable "CHANGE_BRANCH" will contain the real branch name, which we need for checkout later on
+                        if (env.CHANGE_BRANCH) {
+                            env.REAL_GIT_BRANCH = env.CHANGE_BRANCH
+                        }
+                        else {
+                            env.REAL_GIT_BRANCH = env.GIT_BRANCH
+                        }
+                    }
                     // clean workspace
                     cleanWs disableDeferredWipeout: true, deleteDirs: true
                     // checkout iris-kas repo
                     checkout([$class: 'GitSCM',
                         branches: [[name: '*/develop']],
                         extensions: [[$class: 'CloneOption',
-                        noTags: false,
                         reference: '',
                         shallow: false]],
                         userRemoteConfigs: [[url: 'https://github.com/iris-GmbH/iris-kas.git']]])
-                    // try to checkout identical named branch, do not checkout master or PR branch
+                    // try to checkout identical named branch feature/bugfix/... branches
                     sh """
-                        if [ \"\$(basename ${GIT_BRANCH})\" != \"master\" ] && [ \"\$(echo ${GIT_BRANCH} | grep -vE '^PR-')\" ]; then
-                            git checkout ${GIT_BRANCH} || true;
+                        if [ \"\$(basename ${REAL_GIT_BRANCH})\" != \"develop\" ] && [ \"\$(basename ${REAL_GIT_BRANCH})\" != \"master\" ] && \$(echo \"${REAL_GIT_BRANCH}\" | grep -vqE 'release/.*'); then
+                            git checkout ${REAL_GIT_BRANCH} || true;
                         fi
                     """
                     // manually upload kas sources to S3, as to prevent upload conflicts in parallel steps
